@@ -1,0 +1,20 @@
+# SwiftPM 构建产物
+.build/
+.swiftpm/
+
+# 打包输出，由 Scripts/package_app.sh 生成
+dist/
+Resources/AppIcon.icns
+
+# Release 附件，由 Scripts/make_release.sh 生成
+release/
+
+# macOS 自身产生的文件
+.DS_Store
+
+# 编辑器
+xcuserdata/
+*.xcuserstate
+
+# 工具工作状态（本地记忆与缓存，不随仓库分发）
+.workbuddy/

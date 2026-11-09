@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FTP Server for macOS —— 原生、零依赖的 FTP 服务端</title>
+<meta name="description" content="用 Swift 从零实现的原生 macOS FTP 服务端桌面应用。纯系统框架构建，无第三方依赖，支持被动/主动模式、断点续传、多账号权限，测试覆盖 100 项协议断言。通用二进制，Apple Silicon 与 Intel 均可直接运行。">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:title" content="FTP Server for macOS">
+<meta property="og:description" content="原生、零依赖的 macOS FTP 服务端。100 项协议一致性测试全部通过。">
+<meta property="og:image" content="icon-512.png">
+<style>
+  :root {
+    --accent:        #12a45a;
+    --accent-strong: #08733d;
+    --accent-soft:   rgba(18, 164, 90, .10);
+    --bg:            #ffffff;
+    --surface:       #f5f8f6;
+    --surface-2:     #eef4f0;
+    --text:          #16211c;
+    --muted:         #5d6d65;
+    --border:        #e2e9e5;
+    --code-bg:       #f2f6f4;
+    --warn-bg:       rgba(214, 148, 0, .09);
+    --warn-line:     #d69400;
+    --shadow:        0 1px 2px rgba(16, 33, 25, .05), 0 12px 32px -12px rgba(16, 33, 25, .12);
+    --shadow-lg:     0 2px 4px rgba(16, 33, 25, .06), 0 24px 56px -20px rgba(16, 33, 25, .22);
+    --radius:        14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent:        #29c266;
+      --accent-strong: #6ee2a0;
+      --accent-soft:   rgba(41, 194, 102, .13);
+      --bg:            #0d1512;
+      --surface:       #151f1b;
+      --surface-2:     #1b2721;
+      --text:          #e7f1ea;
+      --muted:         #93a89e;
+      --border:        #26332c;
+      --code-bg:       #121b17;
+      --warn-bg:       rgba(230, 170, 40, .12);
+      --warn-line:     #e0a92c;
+      --shadow:        0 1px 2px rgba(0, 0, 0, .3), 0 14px 36px -14px rgba(0, 0, 0, .6);
+      --shadow-lg:     0 2px 4px rgba(0, 0, 0, .35), 0 28px 60px -22px rgba(0, 0, 0, .8);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.72 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-strong); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre {
+    font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------------------------------------------------------- 顶栏 */
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .top .wrap { display: flex; align-items: center; gap: 20px; height: 58px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; letter-spacing: -.01em; }
+  .brand img { width: 22px; height: 22px; border-radius: 6px; }
+  .top nav { margin-left: auto; display: flex; align-items: center; gap: 20px; }
+  .top nav a { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .top nav a:hover { color: var(--text); text-decoration: none; }
+  .top nav a.dl {
+    color: #fff; background: var(--accent); padding: 6px 15px; border-radius: 99px; font-weight: 600;
+  }
+  .top nav a.dl:hover { opacity: .9; }
+  @media (max-width: 820px) { .top nav .hide-sm { display: none; } }
+
+  /* ---------------------------------------------------------- 通用 */
+  section { padding: 72px 0; border-top: 1px solid var(--border); }
+  section:first-of-type { border-top: none; }
+  h2 { font-size: 27px; letter-spacing: -.02em; margin: 0 0 8px; font-weight: 660; }
+  .lead { color: var(--muted); margin: 0 0 34px; max-width: 62ch; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 640; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--accent-strong);
+    background: var(--accent-soft); padding: 4px 10px; border-radius: 99px;
+    margin-bottom: 14px;
+  }
+
+  /* ---------------------------------------------------------- 首屏 */
+  .hero { padding: 78px 0 60px; text-align: center; }
+  .hero img.appicon { width: 104px; height: 104px; border-radius: 24px; box-shadow: var(--shadow); }
+  .hero h1 {
+    font-size: clamp(32px, 5.4vw, 50px); line-height: 1.12;
+    letter-spacing: -.032em; margin: 26px 0 0; font-weight: 700;
+  }
+  .hero .sub {
+    font-size: clamp(16px, 2.1vw, 19px); color: var(--muted);
+    margin: 18px auto 0; max-width: 46ch;
+  }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 28px 0 0; }
+  .badge {
+    font-size: 12.5px; font-weight: 550; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 99px;
+  }
+  .badge.hl { color: var(--accent-strong); background: var(--accent-soft); border-color: transparent; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 32px 0 0; }
+  .cta .hint { width: 100%; color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px; justify-content: center;
+    padding: 11px 22px; border-radius: 99px; font-size: 15px; font-weight: 600;
+    border: 1px solid transparent; transition: transform .12s ease, opacity .12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: var(--shadow); }
+  .btn.ghost { border-color: var(--border); color: var(--text); background: var(--surface); }
+  .btn.big { padding: 15px 34px; font-size: 17px; box-shadow: var(--shadow-lg); }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+
+  /* ---------------------------------------------------------- 截图 */
+  figure.shot { margin: 0; }
+  figure.shot img {
+    width: 100%; height: auto; display: block;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  figure.shot figcaption { text-align: center; color: var(--muted); font-size: 13.5px; margin-top: 16px; }
+
+  /* ---------------------------------------------------------- 下载区 */
+  .dl-box {
+    border: 1px solid var(--border); border-radius: 18px;
+    background: var(--surface); box-shadow: var(--shadow);
+    padding: 34px; display: grid; gap: 30px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+  @media (max-width: 820px) { .dl-box { grid-template-columns: 1fr; padding: 26px; } }
+  .dl-main { display: flex; flex-direction: column; align-items: flex-start; }
+  .dl-file {
+    display: flex; align-items: center; gap: 10px; margin: 20px 0 0;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 13px;
+    color: var(--text); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 9px; padding: 9px 13px; max-width: 100%; overflow-x: auto;
+  }
+  .dl-file svg { width: 15px; height: 15px; flex: none; color: var(--accent-strong); }
+  .dl-meta { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0; }
+  .dl-meta span {
+    font-size: 12.5px; color: var(--muted); background: var(--bg);
+    border: 1px solid var(--border); padding: 4px 11px; border-radius: 99px;
+  }
+  .dl-alt { margin: 18px 0 0; font-size: 14px; color: var(--muted); }
+  .dl-alt a { font-weight: 550; }
+  .dl-alt .sep { margin: 0 9px; opacity: .5; }
+
+  .dl-steps { counter-reset: d; list-style: none; padding: 0; margin: 0; }
+  .dl-steps li {
+    counter-increment: d; position: relative; padding-left: 38px;
+    margin-bottom: 18px; font-size: 14.5px;
+  }
+  .dl-steps li:last-child { margin-bottom: 0; }
+  .dl-steps li::before {
+    content: counter(d); position: absolute; left: 0; top: 1px;
+    width: 25px; height: 25px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 670;
+  }
+  .dl-steps code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 5px; }
+  .dl-steps .aside { display: block; color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+
+  .warn {
+    margin-top: 24px; border-left: 3px solid var(--warn-line);
+    background: var(--warn-bg); border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 17px 21px; font-size: 14.5px;
+  }
+  .warn h3 {
+    margin: 0 0 9px; font-size: 15px; font-weight: 650;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .warn p { margin: 0 0 9px; }
+  .warn p:last-child { margin-bottom: 0; }
+  .warn .snippet { margin: 12px 0; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid.c3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.c2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 900px) { .grid.c3 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .grid.c3, .grid.c2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px 22px 24px;
+  }
+  .card h3 { margin: 0 0 7px; font-size: 16px; font-weight: 640; letter-spacing: -.008em; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .card .mark {
+    width: 30px; height: 30px; border-radius: 9px; margin-bottom: 14px;
+    background: var(--accent-soft); color: var(--accent-strong);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px;
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th {
+    background: var(--surface); font-weight: 620; font-size: 13px; color: var(--muted);
+    letter-spacing: .02em; text-transform: uppercase;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 5px; }
+
+  .snippet { position: relative; margin: 0 0 16px; }
+  .snippet pre {
+    margin: 0; padding: 17px 58px 17px 18px; overflow-x: auto;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13.5px; line-height: 1.65;
+  }
+  .snippet .copy {
+    position: absolute; top: 10px; right: 10px;
+    font: 500 12px/1 -apple-system, sans-serif; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; padding: 6px 10px; cursor: pointer;
+  }
+  .snippet .copy:hover { color: var(--text); }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0; padding: 16px 20px; font-size: 14.5px;
+  }
+  .note p { margin: 0 0 8px; }
+  .note p:last-child { margin-bottom: 0; }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding-left: 44px; margin-bottom: 30px; }
+  ol.steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 27px; height: 27px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13.5px; font-weight: 670;
+  }
+  ol.steps h3 { margin: 0 0 10px; font-size: 16px; font-weight: 640; }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  footer .spacer { margin-left: auto; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="brand"><img src="icon.png" alt="">FTP Server</span>
+    <nav>
+      <a href="#features" class="hide-sm">功能</a>
+      <a href="#commands" class="hide-sm">命令</a>
+      <a href="#security" class="hide-sm">安全</a>
+      <a href="#build" class="hide-sm">源码构建</a>
+      <a href="https://github.com/zdx8/FTPServer-macOS" class="hide-sm">GitHub</a>
+      <a href="#download" class="dl">下载</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero wrap">
+  <img class="appicon" src="icon.png" alt="FTP Server 应用图标">
+  <h1>macOS 上的原生 FTP 服务端</h1>
+  <p class="sub">用 Swift 从零实现，只依赖系统框架。下载即用，无需配置任何运行环境。</p>
+  <div class="badges">
+    <span class="badge hl">100/100 协议测试通过</span>
+    <span class="badge">零第三方依赖</span>
+    <span class="badge">约 3 MB</span>
+    <span class="badge">RFC 959 · 3659 · 2428</span>
+    <span class="badge">macOS 14+</span>
+    <span class="badge">MIT 许可</span>
+  </div>
+  <div class="cta">
+    <a class="btn primary big" href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/>
+      </svg>
+      下载 macOS 版
+    </a>
+    <a class="btn ghost big" href="#download">查看安装说明</a>
+    <span class="hint">
+      通用二进制 · Apple Silicon 与 Intel 均可运行 · 当前 <span data-release-version>v1.0.0</span>
+    </span>
+  </div>
+</div>
+
+<section id="download">
+  <div class="wrap">
+    <span class="eyebrow">下载</span>
+    <h2>下载与安装</h2>
+    <p class="lead">单个压缩包内含完整应用，解压即可使用。下载链接固定不变，始终指向最新版本。</p>
+
+    <div class="dl-box">
+      <div class="dl-main">
+        <a class="btn primary big" href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/>
+          </svg>
+          下载 FTPServer for macOS
+        </a>
+
+        <div class="dl-file">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
+          </svg>
+          FTPServer-macOS-universal.zip
+        </div>
+
+        <div class="dl-meta">
+          <span>版本 <span data-release-version>v1.0.0</span></span>
+          <span data-asset-size>2.2 MB</span>
+          <span>macOS 14.0+</span>
+          <span>通用二进制 arm64 + x86_64</span>
+          <span>MIT 许可</span>
+        </div>
+
+        <div class="dl-alt">
+          <a href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip.sha256">SHA256 校验文件</a>
+          <span class="sep">·</span>
+          <a href="https://github.com/zdx8/FTPServer-macOS/releases">所有版本与更新日志</a>
+          <span class="sep">·</span>
+          <a href="#build">从源码构建</a>
+        </div>
+      </div>
+
+      <ol class="dl-steps">
+        <li>
+          下载并解压，把 <code>FTPServer.app</code> 拖进「应用程序」文件夹
+          <span class="aside">压缩包内另附 LICENSE 与一份使用说明</span>
+        </li>
+        <li>
+          <strong>第一次打开</strong>：在它上面按住 Control 点按（或右键）→ 选择「打开」，
+          在弹出的确认框里再点一次「打开」
+          <span class="aside">放行一次之后即可正常双击启动，不必重复此步骤</span>
+        </li>
+        <li>
+          启动后在「设置」里确认端口与共享目录，在「用户账号」里添加账号
+          <span class="aside">首次启动自动创建 <code>~/FTP Share</code> 与只读的 <code>~/FTP Share/Public</code></span>
+        </li>
+      </ol>
+    </div>
+
+    <div class="warn">
+      <h3>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 9v4"/><path d="M10.3 3.9 2.5 17.5A2 2 0 0 0 4.2 20.5h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 17h.01"/>
+        </svg>
+        第一次打开为什么会被系统拦下？
+      </h3>
+      <p>
+        本应用使用 <strong>ad-hoc（临时）签名</strong>。从网络下载后，macOS 会给它加上隔离属性，
+        双击时提示「无法验证开发者」或「已损坏」。<strong>这不是文件损坏，也不是下载出错。</strong>
+      </p>
+      <p>按上面第 2 步放行一次即可。若仍被拦下，在「终端」里执行下面这行（假定已放进「应用程序」文件夹）：</p>
+      <div class="snippet">
+        <pre>xattr -dr com.apple.quarantine /Applications/FTPServer.app</pre>
+        <button class="copy">复制</button>
+      </div>
+      <p>
+        要彻底消除这个提示需要开发者证书签名与公证；当前项目以开源方式分发，
+        <a href="#build">从源码构建</a>是绕开签名问题的另一条路。
+      </p>
+    </div>
+
+    <h3 style="margin:38px 0 12px;font-size:17px">校验下载</h3>
+    <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px">
+      把下载到的文件与校验文件放在同一目录，然后执行：
+    </p>
+    <div class="snippet">
+      <pre>shasum -a 256 -c FTPServer-macOS-universal.zip.sha256</pre>
+      <button class="copy">复制</button>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin:0">
+      预期输出 <code>FTPServer-macOS-universal.zip: OK</code>，即与校验文件中记录的实际哈希一致。
+    </p>
+  </div>
+</section>
+
+<section id="shot">
+  <div class="wrap">
+    <figure class="shot">
+      <picture>
+        <source srcset="screenshot-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="screenshot-light.png" alt="FTP Server 主界面：侧边栏导航与概览页的实时速率曲线">
+      </picture>
+      <figcaption>概览页：运行状态、接入地址一键复制、实时速率曲线与累计统计。界面跟随系统外观。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <span class="eyebrow">功能</span>
+    <h2>不只是能传文件</h2>
+    <p class="lead">协议正确性、边界安全与可观测性都被当作一等需求实现，而不是事后补齐。</p>
+
+    <div class="grid c3">
+      <div class="card">
+        <div class="mark">⇄</div>
+        <h3>三种数据通道</h3>
+        <p>被动模式 PASV / EPSV、主动模式 PORT 全部实现，并对 <code>PORT</code> 施加回连地址校验以阻断 FTP bounce 攻击。</p>
+      </div>
+      <div class="card">
+        <div class="mark">⏱</div>
+        <h3>断点续传</h3>
+        <p><code>REST</code> 记录偏移配合 <code>RETR</code> / <code>STOR</code> 续传，<code>APPE</code> 追加写，大文件中途断掉不必重头再来。</p>
+      </div>
+      <div class="card">
+        <div class="mark">⌘</div>
+        <h3>原生界面</h3>
+        <p>SwiftUI 编写。实时速率曲线、活动会话管理、分级日志搜索、多账号管理，浅色深色与跟随系统。</p>
+      </div>
+      <div class="card">
+        <div class="mark">◎</div>
+        <h3>菜单栏常驻</h3>
+        <p>可关闭 Dock 图标退居菜单栏，服务继续在后台运行；从菜单栏一键恢复主窗口或复制接入地址。</p>
+      </div>
+      <div class="card">
+        <div class="mark">⛨</div>
+        <h3>路径边界</h3>
+        <p>越出根目录的 <code>..</code> 一律明确拒绝，符号链接写入前解析校验。读、写、删、改名四条路径同等对待。</p>
+      </div>
+      <div class="card">
+        <div class="mark">◷</div>
+        <h3>健壮性</h3>
+        <p>空闲超时、数据停滞看门狗、<code>ABOR</code> 中止、异常断开自动清理，不会留下半开连接。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="commands">
+  <div class="wrap">
+    <span class="eyebrow">协议</span>
+    <h2>命令支持</h2>
+    <p class="lead">
+      <code>FEAT</code> 向客户端声明 <code>SIZE</code>、<code>MDTM</code>、<code>MLSD</code>、<code>MLST</code>、
+      <code>REST STREAM</code>、<code>UTF8</code>、<code>TVFS</code>、<code>EPSV</code>。
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>类别</th><th>命令</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>会话</td>
+            <td><code>USER</code> <code>PASS</code> <code>ACCT</code> <code>QUIT</code> <code>NOOP</code> <code>SYST</code> <code>HELP</code></td>
+            <td>登录、会话收尾与基础信息</td>
+          </tr>
+          <tr>
+            <td>目录</td>
+            <td><code>PWD</code> <code>CWD</code> <code>CDUP</code> <code>MKD</code> <code>RMD</code> <code>DELE</code> <code>RNFR</code> <code>RNTO</code></td>
+            <td>含 <code>XPWD</code> <code>XCWD</code> <code>XCUP</code> <code>XMKD</code> <code>XRMD</code> 旧式别名</td>
+          </tr>
+          <tr>
+            <td>列举</td>
+            <td><code>LIST</code> <code>NLST</code> <code>MLSD</code> <code>MLST</code> <code>STAT</code></td>
+            <td><code>MLSD</code> / <code>MLST</code> 按 RFC 3659 输出结构化事实与 <code>perm</code></td>
+          </tr>
+          <tr>
+            <td>传输</td>
+            <td><code>RETR</code> <code>STOR</code> <code>APPE</code> <code>REST</code> <code>ABOR</code> <code>ALLO</code></td>
+            <td>下载、上传、追加、断点续传与中止</td>
+          </tr>
+          <tr>
+            <td>数据通道</td>
+            <td><code>PASV</code> <code>EPSV</code> <code>PORT</code></td>
+            <td>被动与主动模式，含 <code>EPSV ALL</code></td>
+          </tr>
+          <tr>
+            <td>参数与元数据</td>
+            <td><code>TYPE</code> <code>STRU</code> <code>MODE</code> <code>SIZE</code> <code>MDTM</code> <code>FEAT</code> <code>OPTS</code></td>
+            <td>ASCII / 二进制双模式，UTF8 与 MLST 选项</td>
+          </tr>
+          <tr>
+            <td>未实现</td>
+            <td><code>STOU</code> <code>REIN</code> <code>SMNT</code> <code>SITE</code> <code>AUTH</code></td>
+            <td>明确返回 502 / 503，不做静默忽略</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <span class="eyebrow">安全</span>
+    <h2>边界与鉴权</h2>
+    <p class="lead">共享目录之外的任何位置都不应被触碰——这一条在读、写、删、改名四条路径上分别验证。</p>
+
+    <div class="grid c2">
+      <div class="card">
+        <h3>路径边界</h3>
+        <p style="margin-bottom:12px">
+          客户端路径先逐段消除 <code>.</code> 与 <code>..</code>。<strong>越出根目录的 <code>..</code> 是明确拒绝</strong>，
+          而不是静默钳制到根目录——后者看似安全，实则会让客户端误判自己的位置。
+        </p>
+        <p>
+          随后再做一次符号链接解析后的包含性校验，阻断根目录内的软链接逃逸。
+          写入路径（<code>STOR</code> / <code>APPE</code> / <code>MKD</code>）校验的是父目录，
+          因此另外单独确认目标自身不是指向根目录之外的软链接。
+        </p>
+      </div>
+      <div class="card">
+        <h3>鉴权与最小暴露</h3>
+        <p style="margin-bottom:12px">
+          口令以<strong>加盐 SHA256</strong> 存储，校验使用恒定时间比较，避免通过响应耗时侧信道推断口令。
+        </p>
+        <p>
+          登录失败不区分「账号不存在」与「口令错误」，避免账号枚举；
+          日志中 <code>PASS</code> / <code>ACCT</code> 参数一律打码；
+          <code>PORT</code> 命令限定回连地址必须与控制连接来源一致。
+        </p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:22px">
+      <p><strong>关于口令哈希</strong>：当前未做密钥拉伸（无 PBKDF2 / scrypt）。
+      对局域网内的可信共享场景，加盐 SHA256 已足够；若要将服务暴露到公网，
+      建议先引入 KDF 并启用加密传输。</p>
+    </div>
+  </div>
+</section>
+
+<section id="usage">
+  <div class="wrap">
+    <span class="eyebrow">使用</span>
+    <h2>安装之后怎么用</h2>
+    <p class="lead">
+      默认监听 <strong>2121</strong> 端口（21 端口需要 root 权限，刻意避开以便双击即用），
+      首次启动自动创建共享目录。
+    </p>
+
+    <div class="grid c2">
+      <div class="card">
+        <h3>图形界面</h3>
+        <p style="margin-bottom:12px">
+          侧边栏分五区：概览、活动会话、运行日志、用户账号、设置。
+          在「用户账号」里为每个账号指定独立根目录与权限；在「设置」里改端口、绑定范围与超时。
+        </p>
+        <p>
+          菜单栏常驻：可在设置中选择关闭窗口后「最小化到菜单栏」，服务继续在后台运行，也可直接退出软件。
+        </p>
+      </div>
+      <div class="card">
+        <h3>命令行客户端</h3>
+        <div class="snippet" style="margin-top:12px">
+          <pre>curl ftp://127.0.0.1:2121/
+curl -u alice:secret -T local.txt \
+  ftp://127.0.0.1:2121/remote.txt</pre>
+          <button class="copy">复制</button>
+        </div>
+        <p style="font-size:13.5px">图形客户端可选 Cyberduck、FileZilla、Transmit 等。</p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:22px">
+      <p><strong>访达无法连接本服务</strong>：macOS 自 10.13 起已移除 FTP 支持。
+      这不是本应用的限制，任何 FTP 服务端在访达里都连不上。</p>
+    </div>
+  </div>
+</section>
+
+<section id="build">
+  <div class="wrap">
+    <span class="eyebrow">源码</span>
+    <h2>从源码构建</h2>
+    <p class="lead">
+      不想处理签名提示，或者要改点什么，可以直接构建。需要 macOS 14 以上与完整 Xcode 或 Swift 工具链。
+    </p>
+
+    <ol class="steps">
+      <li>
+        <h3>获取源码并编译</h3>
+        <div class="snippet">
+          <pre>git clone https://github.com/zdx8/FTPServer-macOS.git
+cd FTPServer-macOS
+swift build -c release --disable-sandbox</pre>
+          <button class="copy">复制</button>
+        </div>
+      </li>
+      <li>
+        <h3>打包成可双击的应用</h3>
+        <div class="snippet">
+          <pre>bash Scripts/package_app.sh</pre>
+          <button class="copy">复制</button>
+        </div>
+        <p style="color:var(--muted);font-size:14.5px;margin:0">
+          脚本会生成图标、组装 <code>dist/FTPServer.app</code>，并递增构建号、刷新系统图标缓存。
+          加 <code>UNIVERSAL=1</code> 可产出同时支持两种架构的通用二进制。
+        </p>
+      </li>
+      <li>
+        <h3>启动</h3>
+        <div class="snippet">
+          <pre>open dist/FTPServer.app</pre>
+          <button class="copy">复制</button>
+        </div>
+      </li>
+    </ol>
+
+    <h3 style="margin:38px 0 12px;font-size:17px">同一份二进制的无界面模式</h3>
+    <p style="color:var(--muted);font-size:14.5px;margin:0 0 12px">
+      便于脚本化或被 <code>launchd</code> 驱动，无需图形界面。
+    </p>
+    <div class="snippet">
+      <pre>FTPServer --headless \
+  --port 2121 \
+  --root ~/FTP\ Share \
+  --user alice secret ~/alice-share rwmd \
+  --user guest guest  ~/FTP\ Share/Public r</pre>
+      <button class="copy">复制</button>
+    </div>
+
+    <h3 style="margin:34px 0 12px;font-size:17px">生成发布附件</h3>
+    <div class="snippet">
+      <pre>bash Scripts/make_release.sh</pre>
+      <button class="copy">复制</button>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin:0">
+      产出通用二进制的压缩包与 SHA256 校验文件，可直接作为 Release 附件。
+    </p>
+  </div>
+</section>
+
+<section id="testing">
+  <div class="wrap">
+    <span class="eyebrow">验证</span>
+    <h2>测试与验证</h2>
+    <p class="lead">三层测试都可独立运行，完全不依赖图形界面。</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>层级</th><th>方式</th><th>覆盖内容</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>协议一致性</td>
+            <td><code>Scripts/e2e_test.py</code><br><span style="color:var(--muted);font-size:13px">Python ftplib · 100 项</span></td>
+            <td>认证与权限拒绝、三种数据通道、四种列举、5 MB 随机数据哈希校验、空文件、断点续传、ASCII 往返、Unicode 文件名、8 路并发、7 类路径逃逸与 5 类符号链接写入逃逸</td>
+          </tr>
+          <tr>
+            <td>Core 自检</td>
+            <td><code>Scripts/selfcheck</code><br><span style="color:var(--muted);font-size:13px">Swift，无界面</span></td>
+            <td>会话发布链路、两种绑定模式的实际绑定地址、配置向后兼容、符号链接写入防护、下载源中途截断检测</td>
+          </tr>
+          <tr>
+            <td>界面层</td>
+            <td><code>Scripts/uicheck</code><br><span style="color:var(--muted);font-size:13px">Swift，无界面</span></td>
+            <td>视图离屏渲染回归，以及「真实客户端 → 服务器 → 视图模型 → 渲染」的端到端链路</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="snippet" style="margin-top:22px">
+      <pre>python3 Scripts/e2e_test.py \
+  "$(swift build -c release --show-bin-path --disable-sandbox)/FTPServer" 21321</pre>
+      <button class="copy">复制</button>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <span class="eyebrow">边界</span>
+    <h2>已知限制</h2>
+    <p class="lead">以下是明确的未实现项，而非缺陷——写在这里是为了让选型有据可依。</p>
+
+    <div class="grid c2">
+      <div class="card">
+        <h3>暂不支持加密与 SSH</h3>
+        <p><code>AUTH TLS</code> 返回 502。FTPS 需要引入 TLS 通道，SFTP 基于 SSH 协议、实现量是 FTP 的数倍。当前仅适合局域网内的明文传输场景。</p>
+      </div>
+      <div class="card">
+        <h3>无配额与速率限制</h3>
+        <p>没有磁盘配额、没有带宽限制、没有目录级 ACL。权限粒度是账号级的四个开关：下载、上传、删除、建目录。</p>
+      </div>
+      <div class="card">
+        <h3>签名仅限本机</h3>
+        <p>打包使用 ad-hoc 临时签名，拷到其他机器会被 Gatekeeper 拦截。对外分发需要开发者证书签名与公证。</p>
+      </div>
+      <div class="card">
+        <h3>少量命令未实现</h3>
+        <p><code>STOU</code> <code>REIN</code> <code>SMNT</code> <code>SITE</code> 统一返回 502，不做静默忽略——客户端能明确知道服务器不支持。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>MIT 许可 · 用 Swift 与系统框架构建</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">下载</a>
+    <a href="https://github.com/zdx8/FTPServer-macOS/releases">更新日志</a>
+    <a href="https://github.com/zdx8/FTPServer-macOS">GitHub 仓库</a>
+    <a href="https://github.com/zdx8/FTPServer-macOS/blob/main/README.md">README</a>
+    <a href="https://github.com/zdx8/FTPServer-macOS/issues">问题反馈</a>
+  </div>
+</footer>
+
+<script>
+  // 代码块复制
+  document.querySelectorAll(".snippet .copy").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var text = button.parentElement.querySelector("pre").innerText;
+      navigator.clipboard.writeText(text).then(function () {
+        var original = button.textContent;
+        button.textContent = "已复制";
+        setTimeout(function () { button.textContent = original; }, 1400);
+      });
+    });
+  });
+
+  // 从 GitHub 读取最新版本号与附件大小，失败时保留页面里写好的静态值，
+  // 这样发了新版本之后官网不必同步改动。
+  (function () {
+    var endpoint = "https://api.github.com/repos/zdx8/FTPServer-macOS/releases/latest";
+    fetch(endpoint, { headers: { Accept: "application/vnd.github+json" } })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (release) {
+        if (!release) { return; }
+
+        if (release.tag_name) {
+          document.querySelectorAll("[data-release-version]").forEach(function (node) {
+            node.textContent = release.tag_name;
+          });
+        }
+
+        var match = (release.assets || []).filter(function (item) {
+          return item.name === "FTPServer-macOS-universal.zip";
+        })[0];
+        if (match && match.size) {
+          document.querySelectorAll("[data-asset-size]").forEach(function (node) {
+            node.textContent = (match.size / 1048576).toFixed(1) + " MB";
+          });
+        }
+      })
+      .catch(function () { /* 离线或超出限额时忽略，保留静态内容 */ });
+  })();
+</script>
+
+</body>
+</html>
