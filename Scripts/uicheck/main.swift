@@ -83,8 +83,8 @@ guard let emptyImage = render([]) else {
 }
 check("空会话时渲染成功", !emptyImage.isEmpty, "得到 \(emptyImage.count) 字节")
 
-let addressA = "10.20.30.40:51234"
-let addressB = "192.168.77.88:61000"
+let addressA = "192.0.2.40:51234"
+let addressB = "198.51.100.88:61000"
 
 guard let imageA = render([snapshot(address: addressA)]) else {
     print("  渲染失败：有会话时未能产出图像")

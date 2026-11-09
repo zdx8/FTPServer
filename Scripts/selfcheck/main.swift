@@ -178,7 +178,7 @@ let legacyJSON = """
   "maxConnections": 7,
   "idleTimeout": 111,
   "dataTimeout": 22,
-  "pasvAdvertiseHost": "10.1.2.3",
+  "pasvAdvertiseHost": "192.0.2.3",
   "logLevel": "warning",
   "accounts": []
 }
@@ -190,7 +190,7 @@ do {
           decoded.closeBehavior == .quit, "\(decoded.closeBehavior)")
     check("旧配置的既有字段被完整保留",
           decoded.port == 3131 && decoded.maxConnections == 7
-          && decoded.logLevel == .warning && decoded.pasvAdvertiseHost == "10.1.2.3"
+          && decoded.logLevel == .warning && decoded.pasvAdvertiseHost == "192.0.2.3"
           && decoded.bindAllInterfaces == false,
           "port=\(decoded.port) max=\(decoded.maxConnections)")
 
