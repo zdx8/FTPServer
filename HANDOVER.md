@@ -16,7 +16,7 @@ FTP Server for macOS 是一个用 Swift + `Network.framework` 从零实现的原
 | 官网静态页 | `docs/`（`index.html`、`icon.png`、`icon-512.png`、两张截图） | 页面静态值 v1.0.1 | 版本与附件大小由脚本动态读 Release 覆盖 |
 | 源码 | 本目录，`main` 分支（tag `v1.0.1`） | 1.0.1 | 工作区干净 |
 
-远程仓库：`origin` = `https://github.com/zdx8/FTPServer.git`（2026-11-09 由 `FTPServer-macOS` 改名，旧地址仍 301 跳转）；`gitea` = `ssh://gitea/ZYG/FTPServer-macOS.git`（**尚未改名**，仓库名仍是旧值，需在 Gitea 界面或 API 改后再更新本行）。tag：`v1.0.0`（`2e0692c`，旧界面 zip）、`v1.0.1`（界面重构，DMG）。
+远程仓库：`origin` = `https://github.com/zdx8/FTPServer.git`（2026-11-09 由 `FTPServer-macOS` 改名，旧地址仍 301 跳转）；`gitea` = `ssh://gitea/ZYG/FTPServer.git`（2026-11-09 已随 GitHub 一并改名；本地旧历史已用 `--force-with-lease` 覆盖为脱敏后的历史）。tag 两处一致：`v1.0.0`（`2e0692c`）、`v1.0.1`（`7c8cc4d`）。
 
 **发布状态**：README 与 `docs/index.html` 都指向 GitHub Releases 的固定附件名 `FTPServer-macOS-universal.dmg`（`releases/latest/download/...`，故链接永远指向最新版）；仓库内**没有 `gh-pages` 分支**，官网源为 `main` 的 `docs/`。线上状态（2026-11-09 实测）：新官网 `https://zdx8.github.io/FTPServer/` 返回 200，旧 Pages 地址 `/FTPServer-macOS/` 已 404（Pages 不随仓库改名跳转，外部旧链接需自行更新）。**线上最新 Release 为 v1.0.1**（界面重构 + DMG 附件），与本地 `release/` 同源。
 
@@ -213,3 +213,4 @@ swiftc -O -o /tmp/sc Sources/FTPServer/Core/*.swift Scripts/selfcheck/main.swift
 | 2026-11-09 | v1.0.0 | 仓库改名 `FTPServer-macOS` → `FTPServer`；官网/README 的仓库地址、API 端点、clone 目录名同步；截图按新界面重拍并改用 RFC 5737 地址；全仓脱敏（`com.zyg` → `com.zdx8`、绝对路径、测试夹具 IP）；历史对齐到脱敏后的单提交 `2e0692c` 后重建提交 |
 | 2026-11-09 | v1.0.0 | 发布格式由 zip 改为 DMG：`Scripts/make_release.sh` 重写（hdiutil UDZO + `Applications` 软链 + 挂载校验版本与架构），附件名统一为 `<软件名>-<系统>-<架构>.dmg` 且不带版本号；官网与 README 的下载/校验/安装措辞同步改为 DMG |
 | 2026-11-09 | **v1.0.1** | 首个含新界面的版本：bencho 设计语言、标题栏同色、六项缺陷修复；附件改为 DMG（通用二进制，2,779,435 字节 / `e98edab0…01e73`）；仓库已改名 `FTPServer` |
+| 2026-11-09 | v1.0.1 | Gitea 仓库改名 `ZYG/FTPServer` 并对齐：强推 `main`（旧三段历史 → 脱敏后 `7c8cc4d`）、覆盖 `v1.0.0`、新增 `v1.0.1`；顺带修正 `~/.ssh/config` 中 `gitea` 别名（原指向已不可达的 `10.0.0.8`） |
