@@ -13,20 +13,20 @@
 
 ## 下载安装
 
-**[⬇︎ 下载最新版](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip)** —— 通用二进制，Apple Silicon 与 Intel 均可直接运行。
+**[⬇︎ 下载最新版](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.dmg)** —— 通用二进制，Apple Silicon 与 Intel 均可直接运行。
 
 | | |
 |---|---|
 | 系统要求 | macOS 14.0 或更高 |
-| 文件名 | `FTPServer-macOS-universal.zip`（约 2.2 MB） |
-| 校验文件 | [SHA256](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip.sha256) |
+| 文件名 | `FTPServer-macOS-universal.dmg`（约 2.7 MB） |
+| 校验文件 | [SHA256](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.dmg.sha256) |
 | 历史版本 | [所有 Releases](https://github.com/zdx8/FTPServer/releases) |
 
 下载链接固定不变，始终指向最新版本。
 
 **安装步骤**
 
-1. 解压，把 `FTPServer.app` 拖进「应用程序」文件夹。
+1. 打开下载的 DMG，把 `FTPServer.app` 拖进「应用程序」文件夹。
 2. **第一次打开**：在它上面按住 Control 点按（或右键）→ 选择「打开」→ 在弹出的确认框里再点一次「打开」。
    放行一次之后即可正常双击启动。
 3. 启动后在「设置」里确认端口与共享目录，在「用户账号」里添加账号。
@@ -43,7 +43,7 @@ xattr -dr com.apple.quarantine /Applications/FTPServer.app
 **校验下载**
 
 ```bash
-shasum -a 256 -c FTPServer-macOS-universal.zip.sha256   # 预期输出：OK
+shasum -a 256 -c FTPServer-macOS-universal.dmg.sha256   # 预期输出：OK
 ```
 
 ---

@@ -10,19 +10,19 @@ FTP Server for macOS 是一个用 Swift + `Network.framework` 从零实现的原
 
 | 交付物 | 路径 | 版本 | 校验 |
 |---|---|---|---|
-| 发布压缩包 | `release/FTPServer-macOS-universal.zip` | 1.0.0（通用二进制） | SHA-256 `07f49b7c327241a539a1e1b80366cd385d5302049081470ac9d0fc5ce0203aae`（2,286,383 字节） |
-| 校验文件 | `release/FTPServer-macOS-universal.zip.sha256` | — | 96 字节，内容与上表哈希一致（本次 `shasum -a 256` 复算一致） |
+| 发布磁盘映像 | `release/FTPServer-macOS-universal.dmg` | 1.0.0（通用二进制） | SHA-256 `4e31f2178e0d9d3124f33dd6ed0708b0fb08d3582e0da27a2ad82e2c215dad07`（2,779,438 字节） |
+| 校验文件 | `release/FTPServer-macOS-universal.dmg.sha256` | — | 96 字节，内容与上表哈希一致（本次 `shasum -a 256` 复算一致） |
 | 应用包 | `dist/FTPServer.app` | `CFBundleShortVersionString` = 1.0.0，`CFBundleVersion` = `261109.2250`，`com.zdx8.ftpserver` | 4.6 MB，ad-hoc 签名（含 `_CodeSignature`）；2026-11-09 界面重构后重打 |
 | 官网静态页 | `docs/`（`index.html`、`icon.png`、`icon-512.png`、两张截图） | 页面静态值 v1.0.0 | 页面体积 2.2 MB 由脚本动态读 Release 覆盖 |
 | 源码 | 本目录，`main` 分支（tag `v1.0.0` 在 `2e0692c`） | 1.0.0 | 工作区干净 |
 
 远程仓库：`origin` = `https://github.com/zdx8/FTPServer.git`（2026-11-09 由 `FTPServer-macOS` 改名，旧地址仍 301 跳转）；`gitea` = `ssh://gitea/ZYG/FTPServer-macOS.git`（**尚未改名**，仓库名仍是旧值，需在 Gitea 界面或 API 改后再更新本行）。tag：仅 `v1.0.0`（指向 `2e0692c`）。
 
-**发布状态**：README 与 `docs/index.html` 都指向 GitHub Releases 的固定附件名 `FTPServer-macOS-universal.zip`（`releases/latest/download/...`，故链接永远指向最新版）；仓库内**没有 `gh-pages` 分支**，官网源为 `main` 的 `docs/`。线上状态（2026-11-09 实测）：新官网 `https://zdx8.github.io/FTPServer/` 返回 200，旧 Pages 地址 `/FTPServer-macOS/` 已 404（Pages 不随仓库改名跳转，外部旧链接需自行更新）。**线上 Release 仍是 v1.0.0 的旧界面构建**，与本地 `dist/` 不同源，详见第 5 节。
+**发布状态**：README 与 `docs/index.html` 都指向 GitHub Releases 的固定附件名 `FTPServer-macOS-universal.dmg`（`releases/latest/download/...`，故链接永远指向最新版）；仓库内**没有 `gh-pages` 分支**，官网源为 `main` 的 `docs/`。线上状态（2026-11-09 实测）：新官网 `https://zdx8.github.io/FTPServer/` 返回 200，旧 Pages 地址 `/FTPServer-macOS/` 已 404（Pages 不随仓库改名跳转，外部旧链接需自行更新）。**线上 Release 仍是 v1.0.0 的旧界面构建**，与本地 `dist/` 不同源，详见第 5 节。
 
 > 附件名故意**不带版本号**（`Scripts/make_release.sh` 注释说明：官网永久链接需要固定名），版本号只写在 Release 标题、tag 与包内 `Info.plist`。
 >
-> 附件名里的 `macOS` 与仓库新名 `FTPServer` 不一致，属于有意保留：改动附件名会使线上固定链接 404，必须与「重新上传附件」同一批次完成。下次出 v1.0.1 时一并改成 `FTPServer-universal.zip`，届时同步 `Scripts/make_release.sh`、README、`docs/index.html`（含页面里读附件名的 JS 过滤条件）。
+> 附件命名统一为 `<软件名>-<系统>-<架构>.<扩展名>`，故保留 `-macOS` 段（系统名），与仓库名 `FTPServer` 不冲突。文件名不带版本号是刻意的：`releases/latest/download/<固定名>` 才能永久指向最新版。
 
 ## 3. 怎么跑起来
 
@@ -114,7 +114,7 @@ FTPServerApp.swift（按参数分流 GUI / --headless）
 - **影响体验｜界面层回归测试当前无法编译**：`Scripts/uicheck/main.swift` 直接用 `swiftc` 编译时，SwiftUI 的 `@State` 宏报 `SwiftUIMacros.StateMacro ... malformed response`（Xcode 26 的 swift-plugin-server 在 Swift 6.4.2 工具链下的故障，与本次改动无关，改动前的旧版同样编译不过）。**替代验证**：真机启动 + 窗口级截图逐页核对（浅色/深色、空态与真实会话各一轮），并由 e2e 的 100 项覆盖协议层。修复方向：改用 `swift build` 的 target 承载该自检，或换回带完整宏插件路径的 Xcode 工具链。
 - **边缘｜开关与分段控件不参与键盘 Tab 焦点**（有意）：`LiquidSwitch` 自绘胶囊，接入 `.focusable()` 后系统焦点环会在药丸外再套一圈高亮，且窗口启动时首个可聚焦视图会自动取得焦点、常驻光晕。故只保留 VoiceOver 的 `accessibilityAction`，键盘路径是 ⌘R 启停服务；`BenchoSegmented` 同理，需鼠标点选。
 - **边缘｜Toast 落点固定在右下角**：右上角是启停开关与主按钮，早前版本放在右上会遮挡操作，且 overlay 铺满整层时会吃掉 2.6 秒内的全部点击。现改为按内容尺寸贴右下，不拦截其他区域的指针事件。
-- **边缘｜`release/` 未重出**：界面重构后只重打了 `dist/`，`release/FTPServer-macOS-universal.zip` 仍是 1.0.0 的旧产物，与 `dist/` 不同源。对外发布前必须重跑 `bash Scripts/make_release.sh` 并更新第 2 节哈希。
+- **边缘｜`release/` 与线上不同源**：本地已有 2026-11-09 重打的 `FTPServer-macOS-universal.dmg`（新界面，SHA-256 见第 2 节），但 GitHub 上 v1.0.0 的附件仍是旧界面的 zip。对外发版时需上传新 DMG、删除旧 zip 附件，并更新官网与 README（两者已改为 .dmg 引用）。
 
 ## 6. 外部依赖与凭据
 
@@ -164,13 +164,13 @@ cd "<仓库根>"
 plutil -p dist/FTPServer.app/Contents/Info.plist | grep -E "ShortVersion|BundleVersion|Identifier"
 # 预期：1.0.0 / 261017.0311 / com.zdx8.ftpserver
 
-# 2. 架构（dist 里是最后一次 arm64 构建；release zip 由脚本断言含双架构）
+# 2. 架构（dist 里是最后一次构建；make_release.sh 会断言 DMG 内为双架构）
 lipo -archs dist/FTPServer.app/Contents/MacOS/FTPServer
 # 预期：arm64；zip 内是否真为通用二进制 `未验证：未解压核对`
 
 # 3. 发布包校验（本地复算应与 .sha256 文件一致）
-shasum -a 256 -c release/FTPServer-macOS-universal.zip.sha256
-# 预期：FTPServer-macOS-universal.zip: OK（哈希 07f49b7c…203aae，2,286,383 字节）
+shasum -a 256 -c release/FTPServer-macOS-universal.dmg.sha256
+# 预期：FTPServer-macOS-universal.dmg: OK（哈希 4e31f217…5dad07，2,779,438 字节）
 
 # 4. 仓库状态
 git log -1 --oneline && git tag && git status --porcelain
@@ -205,9 +205,10 @@ swiftc -O -o /tmp/sc Sources/FTPServer/Core/*.swift Scripts/selfcheck/main.swift
 | 2026-09-13 | — | `a66d8c2` 初始提交：原生 macOS FTP 服务端 |
 | 2026-09-13 | v1.0.0 | `20fe4e0` 新增发布流程：通用二进制打包脚本（tag `v1.0.0`） |
 | 2026-09-13 | v1.0.0 | `e5a6985` 官网重做：加入下载安装按钮；附件改为与版本无关的固定名（当前 HEAD） |
-| 2026-09-13 | v1.0.0 | `release/` 产物生成于 14:45（zip 2,286,383 字节 + .sha256） |
+| 2026-09-13 | v1.0.0 | `release/` 产物生成于 14:45（zip 2,286,383 字节 + .sha256；现已弃用，见下行） |
 | 未提交 | — | `Scripts/package_app.sh`：bash 3.2 空数组展开修复（工作区 ` M`，未进 v1.0.0） |
 | 2026-11-09 | v1.0.0 | 界面按 bencho（MIT）设计语言重构：新增 `UI/BenchoTheme.swift` 令牌层，重写 `UI/Components.swift` 与六个视图；`dist/` 重打为 261109.2219（4.6 MB）；e2e 100/100、selfcheck 通过；`release/` 未重出 |
 | 2026-11-09 | v1.0.0 | 标题栏与内容区同色：`.toolbarBackground(.hidden, for: .windowToolbar)` + `titlebarAppearsTransparent` + `window.backgroundColor = Bencho.bgNS`；实测浅色 `#FFFFFF`、深色 `#000000`，与页面底色一致，无分隔线 |
 | 2026-11-09 | v1.0.0 | 缺陷修复：开关光标栈失衡（视图隐藏/禁用时未 pop）、拖拽松手回弹闪跳、窗口缩到 1000pt 以下会话表再次错位（改为内容最小尺寸兜底）、菜单栏主按钮胶囊不随宽度伸展、Toast 遮挡控制条并吃掉全层点击、卡片头部右侧胶囊基线偏移；`dist/` 重打 261109.2237 |
 | 2026-11-09 | v1.0.0 | 仓库改名 `FTPServer-macOS` → `FTPServer`；官网/README 的仓库地址、API 端点、clone 目录名同步；截图按新界面重拍并改用 RFC 5737 地址；全仓脱敏（`com.zyg` → `com.zdx8`、绝对路径、测试夹具 IP）；历史对齐到脱敏后的单提交 `2e0692c` 后重建提交 |
+| 2026-11-09 | v1.0.0 | 发布格式由 zip 改为 DMG：`Scripts/make_release.sh` 重写（hdiutil UDZO + `Applications` 软链 + 挂载校验版本与架构），附件名统一为 `<软件名>-<系统>-<架构>.dmg` 且不带版本号；官网与 README 的下载/校验/安装措辞同步改为 DMG |
