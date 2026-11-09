@@ -265,7 +265,7 @@
       <a href="#commands" class="hide-sm">命令</a>
       <a href="#security" class="hide-sm">安全</a>
       <a href="#build" class="hide-sm">源码构建</a>
-      <a href="https://github.com/zdx8/FTPServer-macOS" class="hide-sm">GitHub</a>
+      <a href="https://github.com/zdx8/FTPServer" class="hide-sm">GitHub</a>
       <a href="#download" class="dl">下载</a>
     </nav>
   </div>
@@ -284,7 +284,7 @@
     <span class="badge">MIT 许可</span>
   </div>
   <div class="cta">
-    <a class="btn primary big" href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">
+    <a class="btn primary big" href="https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/>
       </svg>
@@ -305,7 +305,7 @@
 
     <div class="dl-box">
       <div class="dl-main">
-        <a class="btn primary big" href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">
+        <a class="btn primary big" href="https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/>
           </svg>
@@ -328,9 +328,9 @@
         </div>
 
         <div class="dl-alt">
-          <a href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip.sha256">SHA256 校验文件</a>
+          <a href="https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip.sha256">SHA256 校验文件</a>
           <span class="sep">·</span>
-          <a href="https://github.com/zdx8/FTPServer-macOS/releases">所有版本与更新日志</a>
+          <a href="https://github.com/zdx8/FTPServer/releases">所有版本与更新日志</a>
           <span class="sep">·</span>
           <a href="#build">从源码构建</a>
         </div>
@@ -589,8 +589,8 @@ curl -u alice:secret -T local.txt \
       <li>
         <h3>获取源码并编译</h3>
         <div class="snippet">
-          <pre>git clone https://github.com/zdx8/FTPServer-macOS.git
-cd FTPServer-macOS
+          <pre>git clone https://github.com/zdx8/FTPServer.git
+cd FTPServer
 swift build -c release --disable-sandbox</pre>
           <button class="copy">复制</button>
         </div>
@@ -709,11 +709,11 @@ swift build -c release --disable-sandbox</pre>
   <div class="wrap">
     <span>MIT 许可 · 用 Swift 与系统框架构建</span>
     <span class="spacer"></span>
-    <a href="https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip">下载</a>
-    <a href="https://github.com/zdx8/FTPServer-macOS/releases">更新日志</a>
-    <a href="https://github.com/zdx8/FTPServer-macOS">GitHub 仓库</a>
-    <a href="https://github.com/zdx8/FTPServer-macOS/blob/main/README.md">README</a>
-    <a href="https://github.com/zdx8/FTPServer-macOS/issues">问题反馈</a>
+    <a href="https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip">下载</a>
+    <a href="https://github.com/zdx8/FTPServer/releases">更新日志</a>
+    <a href="https://github.com/zdx8/FTPServer">GitHub 仓库</a>
+    <a href="https://github.com/zdx8/FTPServer/blob/main/README.md">README</a>
+    <a href="https://github.com/zdx8/FTPServer/issues">问题反馈</a>
   </div>
 </footer>
 
@@ -733,7 +733,7 @@ swift build -c release --disable-sandbox</pre>
   // 从 GitHub 读取最新版本号与附件大小，失败时保留页面里写好的静态值，
   // 这样发了新版本之后官网不必同步改动。
   (function () {
-    var endpoint = "https://api.github.com/repos/zdx8/FTPServer-macOS/releases/latest";
+    var endpoint = "https://api.github.com/repos/zdx8/FTPServer/releases/latest";
     fetch(endpoint, { headers: { Accept: "application/vnd.github+json" } })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (release) {

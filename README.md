@@ -13,14 +13,14 @@
 
 ## 下载安装
 
-**[⬇︎ 下载最新版](https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip)** —— 通用二进制，Apple Silicon 与 Intel 均可直接运行。
+**[⬇︎ 下载最新版](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip)** —— 通用二进制，Apple Silicon 与 Intel 均可直接运行。
 
 | | |
 |---|---|
 | 系统要求 | macOS 14.0 或更高 |
 | 文件名 | `FTPServer-macOS-universal.zip`（约 2.2 MB） |
-| 校验文件 | [SHA256](https://github.com/zdx8/FTPServer-macOS/releases/latest/download/FTPServer-macOS-universal.zip.sha256) |
-| 历史版本 | [所有 Releases](https://github.com/zdx8/FTPServer-macOS/releases) |
+| 校验文件 | [SHA256](https://github.com/zdx8/FTPServer/releases/latest/download/FTPServer-macOS-universal.zip.sha256) |
+| 历史版本 | [所有 Releases](https://github.com/zdx8/FTPServer/releases) |
 
 下载链接固定不变，始终指向最新版本。
 
@@ -75,6 +75,11 @@ shasum -a 256 -c FTPServer-macOS-universal.zip.sha256   # 预期输出：OK
 **菜单栏常驻**：可关闭 Dock 图标退居菜单栏，面板内查看状态、启停服务、复制接入地址与日志摘要。
 
 **主题**：工具栏右上角按钮在浅色 / 深色间切换，设置页可选「跟随系统」。
+
+**视觉与交互语言**：界面采用 [bencho](https://github.com/cabralorenzo/bencho)（MIT）的设计令牌与交互范式，
+在 SwiftUI 中重新实现，不含任何 Web 运行时与第三方依赖——纸白/纯黑两套底色、发丝线代替投影、
+反色胶囊表示选中、液体开关、滚动数字、悬停倾斜与右上角 Toast 栈均为原生绘制。
+`Sources/FTPServer/UI/BenchoTheme.swift` 记录全部取值的上游出处。
 
 ---
 
