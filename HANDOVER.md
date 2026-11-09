@@ -12,15 +12,17 @@ FTP Server for macOS 是一个用 Swift + `Network.framework` 从零实现的原
 |---|---|---|---|
 | 发布压缩包 | `release/FTPServer-macOS-universal.zip` | 1.0.0（通用二进制） | SHA-256 `07f49b7c327241a539a1e1b80366cd385d5302049081470ac9d0fc5ce0203aae`（2,286,383 字节） |
 | 校验文件 | `release/FTPServer-macOS-universal.zip.sha256` | — | 96 字节，内容与上表哈希一致（本次 `shasum -a 256` 复算一致） |
-| 应用包 | `dist/FTPServer.app` | `CFBundleShortVersionString` = 1.0.0，`CFBundleVersion` = `261109.2237`，`com.zdx8.ftpserver` | 4.6 MB，ad-hoc 签名（含 `_CodeSignature`）；2026-11-09 界面重构后重打 |
+| 应用包 | `dist/FTPServer.app` | `CFBundleShortVersionString` = 1.0.0，`CFBundleVersion` = `261109.2250`，`com.zdx8.ftpserver` | 4.6 MB，ad-hoc 签名（含 `_CodeSignature`）；2026-11-09 界面重构后重打 |
 | 官网静态页 | `docs/`（`index.html`、`icon.png`、`icon-512.png`、两张截图） | 页面静态值 v1.0.0 | 页面体积 2.2 MB 由脚本动态读 Release 覆盖 |
-| 源码 | 本目录，commit `e5a6985`（main，tag `v1.0.0` 在 `20fe4e0`） | 1.0.0 | **工作区不干净**：`M Scripts/package_app.sh`（见第 5 节）；另有本次补档新增的未跟踪 `HANDOVER.md` |
+| 源码 | 本目录，`main` 分支（tag `v1.0.0` 在 `2e0692c`） | 1.0.0 | 工作区干净 |
 
-远程仓库：`origin` = `https://github.com/zdx8/FTPServer.git`，`gitea` = `ssh://gitea/ZYG/FTPServer.git`。tag：仅 `v1.0.0`。
+远程仓库：`origin` = `https://github.com/zdx8/FTPServer.git`（2026-11-09 由 `FTPServer-macOS` 改名，旧地址仍 301 跳转）；`gitea` = `ssh://gitea/ZYG/FTPServer-macOS.git`（**尚未改名**，仓库名仍是旧值，需在 Gitea 界面或 API 改后再更新本行）。tag：仅 `v1.0.0`（指向 `2e0692c`）。
 
-**发布状态**：README 与 `docs/index.html` 都指向 GitHub Releases 的固定附件名 `FTPServer-macOS-universal.zip`（`releases/latest/download/...`，故链接永远指向最新版）；仓库内**没有 `gh-pages` 分支**，官网源为 `main` 的 `docs/`。线上 Release/Pages 是否仍有效、附件是否与本地 zip 同哈希：`未验证：本次未联网，接手人需自行确认`（可用第 9 节第 3 条比对）。
+**发布状态**：README 与 `docs/index.html` 都指向 GitHub Releases 的固定附件名 `FTPServer-macOS-universal.zip`（`releases/latest/download/...`，故链接永远指向最新版）；仓库内**没有 `gh-pages` 分支**，官网源为 `main` 的 `docs/`。线上状态（2026-11-09 实测）：新官网 `https://zdx8.github.io/FTPServer/` 返回 200，旧 Pages 地址 `/FTPServer-macOS/` 已 404（Pages 不随仓库改名跳转，外部旧链接需自行更新）。**线上 Release 仍是 v1.0.0 的旧界面构建**，与本地 `dist/` 不同源，详见第 5 节。
 
 > 附件名故意**不带版本号**（`Scripts/make_release.sh` 注释说明：官网永久链接需要固定名），版本号只写在 Release 标题、tag 与包内 `Info.plist`。
+>
+> 附件名里的 `macOS` 与仓库新名 `FTPServer` 不一致，属于有意保留：改动附件名会使线上固定链接 404，必须与「重新上传附件」同一批次完成。下次出 v1.0.1 时一并改成 `FTPServer-universal.zip`，届时同步 `Scripts/make_release.sh`、README、`docs/index.html`（含页面里读附件名的 JS 过滤条件）。
 
 ## 3. 怎么跑起来
 
@@ -105,7 +107,7 @@ FTPServerApp.swift（按参数分流 GUI / --headless）
 
 **已知问题**：
 
-- **边缘｜工作区有未提交改动**：`Scripts/package_app.sh` 被修改（`git status` 显示 ` M`）。diff 内容是把 `"${ARCH_FLAGS[@]}"` 改成 `${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}` 并加注释——修复 `set -u` 下空数组展开报 `unbound variable`（macOS bash 3.2）。**该修复不在 v1.0.0 tag 里**，接手人需决定提交或丢弃。
+- **已修复｜打包脚本 bash 3.2 兼容**：`Scripts/package_app.sh` 的 `"${ARCH_FLAGS[@]}"` 已改为 `${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}`，修复 `set -u` 下空数组展开报 `unbound variable`。2026-11-09 随界面重构一并提交，v1.0.0 tag 内仍是旧写法。
 - **影响体验｜口令哈希无 KDF**：加盐 SHA-256 对局域网可信共享够用，公网场景不足（README「安全模型」附注已声明）。
 - **影响体验｜ad-hoc 签名**：拷到别的机器必被 Gatekeeper 拦；需右键打开或 `xattr -dr com.apple.quarantine`。
 - **边缘｜README 测试数与实际调用点数不一致**：README 称 e2e「100 项断言」，源码 `check(` 调用点为 70（循环内可能多次执行）。**2026-11-09 已实跑：100/100 通过（11.8 秒）**，口径以实跑为准。
