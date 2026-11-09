@@ -35,13 +35,15 @@ struct AccountsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Bencho.Space.stack) {
                 ServerControlBar(model: model)
                 anonymousCard
                 accountsCard
             }
-            .padding(20)
+            .padding(Bencho.Space.page)
         }
+        .scrollContentBackground(.hidden)
+        .background(Bencho.bg)
         .navigationTitle("用户账号")
         .sheet(item: $draft) { item in
             AccountEditorSheet(model: model, draft: item)
@@ -49,7 +51,11 @@ struct AccountsView: View {
         .alert("删除账号", isPresented: $showDeleteConfirm) {
             Button("取消", role: .cancel) { pendingDeleteID = nil }
             Button("删除", role: .destructive) {
-                if let id = pendingDeleteID { model.removeAccount(id: id) }
+                if let id = pendingDeleteID {
+                    let name = model.config.accounts.first(where: { $0.id == id })?.username ?? "账号"
+                    model.removeAccount(id: id)
+                    ToastCenter.shared.show(.warning, "已删除账号 \(name)")
+                }
                 pendingDeleteID = nil
             }
         } message: {
@@ -71,15 +77,22 @@ struct AccountsView: View {
 
     private var anonymousCard: some View {
         CardContainer(title: "匿名访问",
-                      subtitle: model.config.anonymousEnabled ? "已开启" : "已关闭",
-                      systemImage: "person.crop.circle.badge.questionmark") {
-            VStack(alignment: .leading, spacing: 10) {
+                      systemImage: "person.crop.circle.badge.questionmark",
+                      trailing: {
+                          PillTag(text: model.config.anonymousEnabled ? "已开启" : "已关闭",
+                                  tint: model.config.anonymousEnabled ? Bencho.ok : Bencho.ink4)
+                      }) {
+            VStack(alignment: .leading, spacing: 8) {
                 SettingRow(title: "允许匿名登录",
                            detail: "使用用户名 anonymous 或 ftp，口令任意填写") {
-                    Toggle("", isOn: binding(\.anonymousEnabled)).labelsHidden()
+                    LiquidSwitch(isOn: model.config.anonymousEnabled,
+                                 trackWidth: 42, trackHeight: 24,
+                                 label: "允许匿名登录") {
+                        binding(\.anonymousEnabled).wrappedValue.toggle()
+                    }
                 }
 
-                Divider()
+                Hairline()
 
                 SettingRow(title: "匿名根目录", detail: model.config.anonymousRootPath) {
                     Button("选择…") {
@@ -90,42 +103,69 @@ struct AccountsView: View {
                             model.saveConfig()
                         }
                     }
+                    .buttonStyle(BenchoButtonStyle(kind: .secondary, compact: true))
                 }
 
-                Divider()
+                Hairline()
 
-                SettingRow(title: "允许上传", detail: "匿名用户可写入文件") {
-                    Toggle("", isOn: binding(\.anonymousCanUpload)).labelsHidden()
+                HStack(spacing: 10) {
+                    toggleChip("上传", isOn: binding(\.anonymousCanUpload))
+                    toggleChip("删除与重命名", isOn: binding(\.anonymousCanDelete))
+                    toggleChip("创建目录", isOn: binding(\.anonymousCanCreateDirectory))
+                    Spacer(minLength: 0)
                 }
-                SettingRow(title: "允许删除与重命名") {
-                    Toggle("", isOn: binding(\.anonymousCanDelete)).labelsHidden()
-                }
-                SettingRow(title: "允许创建目录") {
-                    Toggle("", isOn: binding(\.anonymousCanCreateDirectory)).labelsHidden()
-                }
+                .padding(.top, 2)
 
-                Text("提示：匿名访问面向局域网内的临时共享，建议保持默认只读，仅按需开启上传。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                Text("匿名访问面向局域网内的临时共享，建议保持默认只读，仅按需开启上传。")
+                    .font(.benchoMicro)
+                    .foregroundStyle(Bencho.ink4)
                     .padding(.top, 2)
             }
         }
+    }
+
+    /// 权限开关做成「胶囊 + 短标签」，比一排 checkbox 更接近 bencho 的分段语言。
+    private func toggleChip(_ title: String, isOn: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(Bencho.settle) { isOn.wrappedValue.toggle() }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isOn.wrappedValue ? "checkmark" : "minus")
+                    .font(.system(size: 9, weight: .semibold))
+                Text(title)
+                    .font(.benchoMicro)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .foregroundStyle(isOn.wrappedValue ? Bencho.onInk : Bencho.ink4)
+            .background(Capsule().fill(isOn.wrappedValue ? Bencho.fillOn : Bencho.inset))
+            .overlay(Capsule().stroke(isOn.wrappedValue ? Color.clear : Bencho.edge, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 账号列表
 
     private var accountsCard: some View {
         CardContainer(title: "账号列表",
-                      subtitle: "\(model.config.accounts.count) 个账号",
-                      systemImage: "person.badge.key") {
+                      systemImage: "person.badge.key",
+                      trailing: {
+                          Button {
+                              draft = AccountDraft()
+                          } label: {
+                              Label("新建账号", systemImage: "plus")
+                          }
+                          .buttonStyle(BenchoButtonStyle(kind: .primary, compact: true))
+                      }) {
             VStack(alignment: .leading, spacing: 0) {
                 if model.config.accounts.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("尚未创建账号")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.benchoLabel)
+                            .foregroundStyle(Bencho.ink2)
                         Text("每个账号拥有独立根目录与权限。创建后即可用「用户名 + 口令」登录，与匿名访问相互独立。")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .font(.benchoMicro)
+                            .foregroundStyle(Bencho.ink4)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 10)
@@ -133,54 +173,42 @@ struct AccountsView: View {
                     ForEach(model.config.accounts) { account in
                         accountRow(account)
                         if account.id != model.config.accounts.last?.id {
-                            Divider()
+                            Hairline()
                         }
                     }
                 }
-
-                HStack {
-                    Button {
-                        draft = AccountDraft()
-                    } label: {
-                        Label("新建账号", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    Spacer()
-                }
-                .padding(.top, 12)
             }
         }
     }
 
     private func accountRow(_ account: FTPAccount) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: account.enabled ? "key.horizontal.fill" : "key.slash")
-                .font(.system(size: 13))
-                .foregroundStyle(account.enabled ? Color.accentColor : Color.secondary)
-                .frame(width: 18)
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(account.enabled ? Bencho.inset : Bencho.insetDeep)
+                Image(systemName: account.enabled ? "key.horizontal.fill" : "key.slash")
+                    .font(.system(size: 11))
+                    .foregroundStyle(account.enabled ? Bencho.ink : Bencho.ink5)
+            }
+            .frame(width: 26, height: 26)
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 7) {
                     Text(account.username)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.benchoLabel)
+                        .foregroundStyle(Bencho.ink)
                     if !account.enabled {
-                        Text("已禁用")
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
-                            .foregroundStyle(.secondary)
+                        PillTag(text: "已禁用")
                     }
                 }
                 Text(account.effectiveRootPath)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .font(.benchoMonoSmall)
+                    .foregroundStyle(Bencho.ink4)
                     .lineLimit(1)
                     .truncationMode(.head)
                 Text(account.permissionSummary)
                     .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Bencho.ink5)
             }
 
             Spacer(minLength: 8)
@@ -188,16 +216,13 @@ struct AccountsView: View {
             Button("编辑") {
                 draft = AccountDraft.from(account)
             }
-            .buttonStyle(.link)
-            .font(.system(size: 12))
+            .buttonStyle(BenchoButtonStyle(kind: .ghost, compact: true))
 
             Button("删除") {
                 pendingDeleteID = account.id
                 showDeleteConfirm = true
             }
-            .buttonStyle(.link)
-            .font(.system(size: 12))
-            .foregroundStyle(Color.red)
+            .buttonStyle(BenchoButtonStyle(kind: .danger, compact: true))
         }
         .padding(.vertical, 9)
     }
@@ -218,103 +243,133 @@ struct AccountEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: draft.isNew ? "person.badge.plus" : "person.badge.key")
-                    .foregroundStyle(Color.accentColor)
+            HStack(spacing: 9) {
                 Text(draft.isNew ? "新建账号" : "编辑账号")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.benchoHeadline)
+                    .tracking(-0.3)
+                    .foregroundStyle(Bencho.ink)
                 Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, Bencho.Space.l)
+            .padding(.vertical, 18)
 
-            Divider()
+            Hairline()
 
             VStack(alignment: .leading, spacing: 14) {
                 labeledField("用户名") {
                     TextField("例如 share", text: $draft.username)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.plain)
+                        .font(.benchoBody)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .benchoInset()
                         .disableAutocorrection(true)
                 }
 
                 labeledField(draft.isNew ? "口令" : "口令（留空表示不修改）") {
                     SecureField("至少 1 个字符", text: $draft.password)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.plain)
+                        .font(.benchoBody)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .benchoInset()
                 }
 
                 labeledField("根目录") {
                     HStack(spacing: 8) {
                         Text(draft.rootPath)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.benchoMonoSmall)
+                            .foregroundStyle(Bencho.ink2)
                             .lineLimit(1)
                             .truncationMode(.head)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(Color(nsColor: .textBackgroundColor))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                            )
+                            .padding(.horizontal, 10)
+                            .frame(height: 30)
+                            .benchoInset()
                         Button("选择…") {
                             DirectoryPicker.choose(title: "选择账号根目录",
                                                    current: draft.rootPath) { path in
                                 if let path = path { draft.rootPath = path }
                             }
                         }
+                        .buttonStyle(BenchoButtonStyle(kind: .secondary, compact: true))
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 9) {
-                    Text("权限")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Toggle("允许查看与下载（必需）", isOn: $draft.canDownload)
-                    Toggle("允许上传文件", isOn: $draft.canUpload)
-                    Toggle("允许删除与重命名", isOn: $draft.canDelete)
-                    Toggle("允许创建目录", isOn: $draft.canCreateDirectory)
-                    Toggle("启用该账号", isOn: $draft.enabled)
+                    SectionLabel(text: "权限")
+                    VStack(alignment: .leading, spacing: 2) {
+                        permissionRow("允许查看与下载（必需）", isOn: $draft.canDownload)
+                        permissionRow("允许上传文件", isOn: $draft.canUpload)
+                        permissionRow("允许删除与重命名", isOn: $draft.canDelete)
+                        permissionRow("允许创建目录", isOn: $draft.canCreateDirectory)
+                        permissionRow("启用该账号", isOn: $draft.enabled)
+                    }
                 }
-                .toggleStyle(.checkbox)
-                .font(.system(size: 12))
 
                 if let validationMessage = validationMessage {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(Color.red)
-                        Text(validationMessage)
                             .font(.system(size: 11))
-                            .foregroundStyle(Color.red)
+                            .foregroundStyle(Bencho.danger)
+                        Text(validationMessage)
+                            .font(.benchoMicro)
+                            .foregroundStyle(Bencho.danger)
                     }
                 }
             }
-            .padding(20)
+            .padding(Bencho.Space.l)
 
-            Divider()
+            Hairline()
 
-            HStack {
+            HStack(spacing: 10) {
                 Spacer()
                 Button("取消") { dismiss() }
+                    .buttonStyle(BenchoButtonStyle(kind: .ghost))
                     .keyboardShortcut(.cancelAction)
                 Button(draft.isNew ? "创建" : "保存") { save() }
+                    .buttonStyle(BenchoButtonStyle(kind: .primary))
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Bencho.Space.l)
+            .padding(.vertical, 16)
         }
-        .frame(width: 460)
+        .frame(width: 470)
+        .background(Bencho.bg)
+    }
+
+    private func permissionRow(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 9) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(isOn.wrappedValue ? Bencho.fillOn : Bencho.inset)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(isOn.wrappedValue ? Color.clear : Bencho.edgeStrong, lineWidth: 1)
+                if isOn.wrappedValue {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(Bencho.onInk)
+                }
+            }
+            .frame(width: 15, height: 15)
+
+            Text(title)
+                .font(.benchoCaption)
+                .foregroundStyle(isOn.wrappedValue ? Bencho.ink2 : Bencho.ink4)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(Bencho.settle) { isOn.wrappedValue.toggle() }
+        }
     }
 
     private func labeledField<Content: View>(_ title: String,
                                             @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+            SectionLabel(text: title)
             content()
         }
     }
@@ -349,6 +404,7 @@ struct AccountEditorSheet: View {
             account.canCreateDirectory = draft.canCreateDirectory
             account.enabled = draft.enabled
             model.addAccount(account)
+            ToastCenter.shared.show(.success, "已创建账号 \(name)")
         } else if let id = draft.accountID,
                   var account = model.config.accounts.first(where: { $0.id == id }) {
             account.username = name
@@ -362,34 +418,8 @@ struct AccountEditorSheet: View {
                 account.setPassword(draft.password)
             }
             model.updateAccount(account)
+            ToastCenter.shared.show(.success, "已保存账号 \(name)")
         }
         dismiss()
-    }
-}
-
-// MARK: - 设置行
-
-struct SettingRow<Control: View>: View {
-    let title: String
-    var detail: String? = nil
-    @ViewBuilder let control: () -> Control
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12, weight: .medium))
-                if let detail = detail, !detail.isEmpty {
-                    Text(detail)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            Spacer(minLength: 10)
-            control()
-        }
-        .padding(.vertical, 3)
     }
 }

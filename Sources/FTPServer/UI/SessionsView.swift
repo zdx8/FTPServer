@@ -24,14 +24,17 @@ enum TimeText {
 
 /// 会话列表的列宽定义。集中在一处，保证表头与数据行严格对齐。
 private enum SessionColumn {
-    static let client: CGFloat = 166
-    static let user: CGFloat = 100
-    static let status: CGFloat = 132
-    static let uploaded: CGFloat = 76
-    static let downloaded: CGFloat = 76
-    static let duration: CGFloat = 72
-    static let command: CGFloat = 88
-    static let action: CGFloat = 52
+    // 固定列合计 712pt + 8 处 8pt 间距 = 776pt，在 1180 宽的默认窗口下
+    // 仍给「当前目录」留下约 130pt。此前合计 826pt 已超订，会导致数据行被挤压、
+    // 与表头逐列错位（实测「状态」列偏左 42pt）。
+    static let client: CGFloat = 148
+    static let user: CGFloat = 90
+    static let status: CGFloat = 100
+    static let uploaded: CGFloat = 66
+    static let downloaded: CGFloat = 66
+    static let duration: CGFloat = 62
+    static let command: CGFloat = 78
+    static let action: CGFloat = 48
     static let directoryMinimum: CGFloat = 120
 }
 
@@ -42,23 +45,26 @@ struct SessionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             ServerControlBar(model: model)
-                .padding(16)
+                .padding(Bencho.Space.page)
 
             if model.sessions.isEmpty {
                 EmptyHint(icon: "person.2.slash",
                           title: "当前没有连接",
                           message: model.state.isRunning
                               ? "服务已在端口 \(model.config.port) 监听，等待客户端接入。"
-                              : "服务未运行，请先点击「启动服务」。")
+                              : "服务未运行，请先启动服务。")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 sessionList
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .benchoSurface()
+                    .padding(.horizontal, Bencho.Space.page)
+                    .padding(.bottom, Bencho.Space.page)
             }
 
-            Divider()
             footer
         }
+        .background(Bencho.bg)
         .navigationTitle("活动会话")
         .onChange(of: model.sessions.map { $0.id }) { _, newValue in
             selection = selection.intersection(Set(newValue))
@@ -72,15 +78,25 @@ struct SessionsView: View {
     private var sessionList: some View {
         VStack(spacing: 0) {
             headerRow
-            Divider()
+            Hairline()
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.sessions) { session in
-                        sessionRow(session)
-                        Divider().padding(.leading, 16)
+                        SessionRowView(session: session,
+                                       isSelected: selection.contains(session.id)) {
+                            if selection.contains(session.id) {
+                                selection.remove(session.id)
+                            } else {
+                                selection.insert(session.id)
+                            }
+                        } onDisconnect: {
+                            model.disconnect(session)
+                        }
+                        Hairline(leadingInset: 14)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
         }
     }
 
@@ -96,9 +112,9 @@ struct SessionsView: View {
             headerCell("最后命令", width: SessionColumn.command)
             headerCell("", width: SessionColumn.action)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 7)
-        .background(Color.primary.opacity(0.035))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Bencho.inset)
     }
 
     private func headerCell(_ title: String,
@@ -106,87 +122,12 @@ struct SessionsView: View {
                             flexible: Bool = false,
                             alignment: Alignment = .leading) -> some View {
         Text(title)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.secondary)
+            .font(.system(size: 10, weight: .medium))
+            .tracking(0.2)
+            .foregroundStyle(Bencho.ink4)
             // frame 没有同时接受 width 与 maxWidth 的重载，拆成两次调用
             .frame(width: flexible ? nil : width, alignment: alignment)
             .frame(maxWidth: flexible ? .infinity : nil, alignment: alignment)
-    }
-
-    private func sessionRow(_ session: FTPSessionSnapshot) -> some View {
-        let isSelected = selection.contains(session.id)
-        return HStack(spacing: 8) {
-            Text(session.remoteAddress)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-                .frame(width: SessionColumn.client, alignment: .leading)
-
-            Text(session.username)
-                .font(.system(size: 11))
-                .lineLimit(1)
-                .frame(width: SessionColumn.user, alignment: .leading)
-
-            Text(session.currentDirectory)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            statusCell(session)
-                .frame(width: SessionColumn.status, alignment: .leading)
-
-            Text(ByteFormat.text(session.bytesIn))
-                .font(.system(size: 11))
-                .monospacedDigit()
-                .frame(width: SessionColumn.uploaded, alignment: .trailing)
-
-            Text(ByteFormat.text(session.bytesOut))
-                .font(.system(size: 11))
-                .monospacedDigit()
-                .frame(width: SessionColumn.downloaded, alignment: .trailing)
-
-            Text(TimeText.duration(since: session.connectedAt))
-                .font(.system(size: 11))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(width: SessionColumn.duration, alignment: .trailing)
-
-            Text(session.lastCommand)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-                .foregroundStyle(.secondary)
-                .frame(width: SessionColumn.command, alignment: .leading)
-
-            Button("断开") { model.disconnect(session) }
-                .buttonStyle(.link)
-                .font(.system(size: 11))
-                .frame(width: SessionColumn.action, alignment: .trailing)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 7)
-        .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if isSelected { selection.remove(session.id) } else { selection.insert(session.id) }
-        }
-        .contextMenu {
-            Button("断开该连接") { model.disconnect(session) }
-        }
-    }
-
-    @ViewBuilder
-    private func statusCell(_ session: FTPSessionSnapshot) -> some View {
-        if session.isTransferring {
-            HStack(spacing: 5) {
-                ProgressView().controlSize(.mini)
-                Text(session.transferSummary.isEmpty ? "传输中" : session.transferSummary)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .foregroundStyle(Color.accentColor)
-            }
-        } else {
-            Text("空闲").font(.system(size: 11)).foregroundStyle(.secondary)
-        }
     }
 
     // MARK: - 底部汇总
@@ -194,25 +135,25 @@ struct SessionsView: View {
     private var footer: some View {
         HStack(spacing: 12) {
             Text("共 \(model.sessions.count) 个连接，上限 \(model.config.maxConnections)")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .font(.benchoMicro)
+                .foregroundStyle(Bencho.ink4)
 
             // 服务端计数与列表条数不一致，说明推送链路出了问题。
             // 把这种情况直接摆到界面上，避免「连接了但列表空白」无从判断。
             if model.stats.activeSessions != model.sessions.count {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                     Text("服务端报告 \(model.stats.activeSessions) 个连接，列表未同步")
-                        .font(.system(size: 11))
+                        .font(.benchoMicro)
                 }
-                .foregroundStyle(Color.orange)
+                .foregroundStyle(Bencho.warn)
             }
 
             if !selection.isEmpty {
                 Text("已选中 \(selection.count) 个")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.accentColor)
+                    .font(.benchoMicro)
+                    .foregroundStyle(Bencho.pick)
             }
 
             Spacer()
@@ -225,14 +166,112 @@ struct SessionsView: View {
                 }
                 selection.removeAll()
             }
-            .buttonStyle(.link)
+            .buttonStyle(BenchoButtonStyle(kind: .ghost, compact: true))
             .disabled(selection.isEmpty)
 
             Button("全部断开") { model.disconnectAll() }
-                .buttonStyle(.link)
+                .buttonStyle(BenchoButtonStyle(kind: .ghost, compact: true))
                 .disabled(model.sessions.isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 9)
+        .padding(.horizontal, Bencho.Space.page)
+        .padding(.vertical, 10)
+        .overlay(alignment: .top) { Hairline() }
+    }
+}
+
+// MARK: - 会话行
+
+private struct SessionRowView: View {
+    let session: FTPSessionSnapshot
+    let isSelected: Bool
+    let onTap: () -> Void
+    let onDisconnect: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(session.remoteAddress)
+                .font(.benchoMonoSmall)
+                .foregroundStyle(Bencho.ink)
+                .lineLimit(1)
+                .frame(width: SessionColumn.client, alignment: .leading)
+
+            Text(session.username)
+                .font(.benchoMicro)
+                .foregroundStyle(Bencho.ink2)
+                .lineLimit(1)
+                .frame(width: SessionColumn.user, alignment: .leading)
+
+            Text(session.currentDirectory)
+                .font(.benchoMonoSmall)
+                .foregroundStyle(Bencho.ink3)
+                .lineLimit(1)
+                .truncationMode(.head)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            statusCell
+                .frame(width: SessionColumn.status, alignment: .leading)
+
+            Text(ByteFormat.text(session.bytesIn))
+                .font(.benchoMonoSmall)
+                .monospacedDigit()
+                .foregroundStyle(Bencho.ink2)
+                .frame(width: SessionColumn.uploaded, alignment: .trailing)
+
+            Text(ByteFormat.text(session.bytesOut))
+                .font(.benchoMonoSmall)
+                .monospacedDigit()
+                .foregroundStyle(Bencho.ink2)
+                .frame(width: SessionColumn.downloaded, alignment: .trailing)
+
+            Text(TimeText.duration(since: session.connectedAt))
+                .font(.benchoMonoSmall)
+                .monospacedDigit()
+                .foregroundStyle(Bencho.ink4)
+                .frame(width: SessionColumn.duration, alignment: .trailing)
+
+            Text(session.lastCommand)
+                .font(.benchoMonoSmall)
+                .lineLimit(1)
+                .foregroundStyle(Bencho.ink4)
+                .frame(width: SessionColumn.command, alignment: .leading)
+
+            Button("断开", action: onDisconnect)
+                .buttonStyle(BenchoButtonStyle(kind: .ghost, compact: true))
+                .frame(width: SessionColumn.action, alignment: .trailing)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(rowBackground)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .onHover { hovering = $0 }
+        .animation(Bencho.fade, value: hovering)
+        .contextMenu {
+            Button("断开该连接", action: onDisconnect)
+        }
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Bencho.pick.opacity(0.10) }
+        return hovering ? Bencho.inset : Color.clear
+    }
+
+    @ViewBuilder
+    private var statusCell: some View {
+        if session.isTransferring {
+            HStack(spacing: 5) {
+                ProgressView().controlSize(.mini)
+                Text(session.transferSummary.isEmpty ? "传输中" : session.transferSummary)
+                    .font(.benchoMicro)
+                    .lineLimit(1)
+                    .foregroundStyle(Bencho.pick)
+            }
+        } else {
+            Text("空闲")
+                .font(.benchoMicro)
+                .foregroundStyle(Bencho.ink5)
+        }
     }
 }

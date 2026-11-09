@@ -65,7 +65,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: return "gauge.with.dots.needle.67percent"
-        case .sessions:  return "person.2.wave.2"
+        case .sessions:  return "person.2"
         case .logs:      return "text.alignleft"
         case .accounts:  return "person.badge.key"
         case .settings:  return "gearshape"

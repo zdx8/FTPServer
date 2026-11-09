@@ -23,8 +23,10 @@ else
   ARCH_FLAGS=()
   echo "    目标架构：$(uname -m)"
 fi
-swift build -c release "${ARCH_FLAGS[@]}" --disable-sandbox
-BIN_PATH="$(swift build -c release "${ARCH_FLAGS[@]}" --show-bin-path --disable-sandbox)"
+# 注意 ${ARCH_FLAGS[@]+...} 的写法：macOS 自带 bash 3.2，
+# 在 set -u 下直接展开空数组会报 "unbound variable" 而中止打包。
+swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --disable-sandbox
+BIN_PATH="$(swift build -c release ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path --disable-sandbox)"
 
 echo "==> 准备图标"
 mkdir -p Resources
