@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 APP_NAME="FTPServer"
 DISPLAY_NAME="FTP Server"
 BUNDLE_ID="com.zdx8.ftpserver"
-VERSION="1.0.0"
+VERSION="1.0.1"
 # 每次打包递增构建号。macOS 的应用图标缓存以「bundle 标识 + 版本号 + 路径」为键，
 # 版本号不变时系统会一直沿用缓存中的旧图标——改了 AppIcon.icns 也不生效。
 # 默认用时间戳保证单调变化，可用环境变量显式覆盖。
