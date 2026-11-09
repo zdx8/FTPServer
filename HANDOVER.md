@@ -210,3 +210,4 @@ swiftc -O -o /tmp/sc Sources/FTPServer/Core/*.swift Scripts/selfcheck/main.swift
 | 2026-11-09 | v1.0.0 | 界面按 bencho（MIT）设计语言重构：新增 `UI/BenchoTheme.swift` 令牌层，重写 `UI/Components.swift` 与六个视图；`dist/` 重打为 261109.2219（4.6 MB）；e2e 100/100、selfcheck 通过；`release/` 未重出 |
 | 2026-11-09 | v1.0.0 | 标题栏与内容区同色：`.toolbarBackground(.hidden, for: .windowToolbar)` + `titlebarAppearsTransparent` + `window.backgroundColor = Bencho.bgNS`；实测浅色 `#FFFFFF`、深色 `#000000`，与页面底色一致，无分隔线 |
 | 2026-11-09 | v1.0.0 | 缺陷修复：开关光标栈失衡（视图隐藏/禁用时未 pop）、拖拽松手回弹闪跳、窗口缩到 1000pt 以下会话表再次错位（改为内容最小尺寸兜底）、菜单栏主按钮胶囊不随宽度伸展、Toast 遮挡控制条并吃掉全层点击、卡片头部右侧胶囊基线偏移；`dist/` 重打 261109.2237 |
+| 2026-11-09 | v1.0.0 | 仓库改名 `FTPServer-macOS` → `FTPServer`；官网/README 的仓库地址、API 端点、clone 目录名同步；截图按新界面重拍并改用 RFC 5737 地址；全仓脱敏（`com.zyg` → `com.zdx8`、绝对路径、测试夹具 IP）；历史对齐到脱敏后的单提交 `2e0692c` 后重建提交 |
